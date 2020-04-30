@@ -18,6 +18,9 @@ namespace NeoDebug
         [Option]
         private bool Log { get; }
 
+        [Option]
+        private bool Trace { get; }
+
         public Program()
         {
             var neoDebugLogPath = Path.Combine(
@@ -41,6 +44,7 @@ namespace NeoDebug
             }
 
             var adapter = new DebugAdapter(
+                Trace,
                 Console.OpenStandardInput(),
                 Console.OpenStandardOutput(),
                 (cat, msg) => LogMessage(msg, cat));

@@ -11,11 +11,13 @@ namespace NeoDebug
 {
     public class DebugAdapter : DebugAdapterBase
     {
+        private readonly bool trace;
         private readonly Action<LogCategory, string> logger;
         private DebugSession? session;
 
-        public DebugAdapter(Stream @in, Stream @out, Action<LogCategory, string>? logger)
+        public DebugAdapter(bool trace, Stream @in, Stream @out, Action<LogCategory, string>? logger)
         {
+            this.trace = trace;
             this.logger = logger ?? ((_, __) => { });
 
             InitializeProtocolClient(@in, @out);
@@ -39,6 +41,7 @@ namespace NeoDebug
             return new InitializeResponse()
             {
                 SupportsEvaluateForHovers = true,
+                SupportsStepBack = trace,
             };
         }
 

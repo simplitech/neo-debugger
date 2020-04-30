@@ -11,7 +11,7 @@ using System.Text.RegularExpressions;
 
 namespace NeoDebug
 {
-    internal static class DebugInfoParser
+    static class DebugInfoParser
     {
         class DocumentResolver
         {

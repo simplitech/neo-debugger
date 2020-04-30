@@ -13,7 +13,7 @@ using System.Text;
 
 namespace NeoDebug
 {
-    internal class DebugSession : IVariableContainerSession
+    class DebugSession : IVariableContainerSession
     {
         private readonly IExecutionEngine engine;
         private readonly Contract contract;
@@ -115,8 +115,10 @@ namespace NeoDebug
 
         static public DebugSession Create(Contract contract, LaunchArguments arguments, Action<DebugEvent> sendEvent)
         {
-            var contractArgs = GetArguments(contract.EntryPoint).ToArray();
             var returnTypes = GetReturnTypes().ToArray();
+
+
+            var contractArgs = GetArguments(contract.EntryPoint).ToArray();
 
             var engine = DebugExecutionEngine.Create(contract, arguments, outputEvent => sendEvent(outputEvent));
             return new DebugSession(engine, contract, sendEvent, contractArgs, returnTypes);
