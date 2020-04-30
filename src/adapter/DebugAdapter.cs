@@ -45,23 +45,23 @@ namespace NeoDebug
             };
         }
 
-        protected override LaunchResponse HandleLaunchRequest(LaunchArguments arguments)
+        protected override async void HandleLaunchRequestAsync(IRequestResponder<LaunchArguments> responder)
         {
             try
             {
-                var programFileName = arguments.ConfigurationProperties["program"].Value<string>();
-                var contract = Contract.Load(programFileName);
-                session = DebugSession.Create(contract, arguments, Protocol.SendEvent);
+                var programFileName = responder.Arguments.ConfigurationProperties["program"].Value<string>();
+                var contract = await Contract.Load(programFileName);
+                session = DebugSession.Create(contract, responder.Arguments, Protocol.SendEvent);
 
                 session.StepIn();
                 Protocol.SendEvent(new StoppedEvent(StoppedEvent.ReasonValue.Entry) { ThreadId = 1 });
 
-                return new LaunchResponse();
+                responder.SetResponse(new LaunchResponse());
             }
             catch (Exception ex)
             {
                 Log(ex.Message, LogCategory.DebugAdapterOutput);
-                throw new ProtocolException(ex.Message, ex);
+                responder.SetError(new ProtocolException(ex.Message, ex));
             }
         }
 

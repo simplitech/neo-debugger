@@ -1,6 +1,7 @@
 ﻿using Neo.VM;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace NeoDebug.Models
 {
@@ -30,12 +31,14 @@ namespace NeoDebug.Models
             return builder;
         }
 
-        public static Contract Load(string vmFileName)
+        public static async Task<Contract> Load(string vmFileName)
         {
-            var script = File.ReadAllBytes(vmFileName);
-            var debugInfo = DebugInfoParser.Load(vmFileName);
+            var scriptTask = File.ReadAllBytesAsync(vmFileName);
+            var debugInfoTask = DebugInfoParser.Load(vmFileName);
 
-            return new Contract(script, debugInfo);
+            await Task.WhenAll(scriptTask, debugInfoTask);
+
+            return new Contract(scriptTask.Result, debugInfoTask.Result);
         }
     }
 }
