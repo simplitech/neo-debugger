@@ -9,7 +9,7 @@ namespace NeoDebug
 {
     static class SessionUtility
     {
-        const VMState HALT_OR_FAULT = VMState.HALT | VMState.FAULT;
+        public const VMState HALT_OR_FAULT = VMState.HALT | VMState.FAULT;
 
         public static IEnumerable<StackFrame> GetStackFrames(StackTraceArguments args, Contract contract, VMState state, int stackCount,
             Func<int, (ReadOnlyMemory<byte> scriptHash, int instructionPointer)> getFrame)

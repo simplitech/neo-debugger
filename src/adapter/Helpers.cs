@@ -2,7 +2,6 @@
 using Neo.VM;
 using NeoDebug.Models;
 using NeoDebug.VariableContainers;
-using NeoFx;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;

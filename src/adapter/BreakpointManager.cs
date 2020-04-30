@@ -67,11 +67,9 @@ namespace NeoDebug
             }
         }
 
-        const VMState HALT_OR_FAULT = VMState.HALT | VMState.FAULT;
-
         public bool Check(VMState state, ReadOnlySpan<byte> scriptHash, int instructionPointer)
         {
-            if ((state & HALT_OR_FAULT) == 0)
+            if ((state & SessionUtility.HALT_OR_FAULT) == 0)
             {
                 if (contract.ScriptHash.AsSpan().SequenceEqual(scriptHash))
                 {

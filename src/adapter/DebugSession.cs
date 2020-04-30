@@ -7,7 +7,6 @@ using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Text;
@@ -155,8 +154,6 @@ namespace NeoDebug
             return breakPointManager.Set(source, sourceBreakpoints);
         }
 
-        const VMState HALT_OR_FAULT = VMState.HALT | VMState.FAULT;
-
         bool CheckBreakpoint() 
         {
             var context = engine.CurrentContext;
@@ -173,11 +170,11 @@ namespace NeoDebug
         {
             var c = engine.InvocationStack.Count;
             var stopReason = StoppedEvent.ReasonValue.Step;
-            while ((engine.State & HALT_OR_FAULT) == 0)
+            while ((engine.State & SessionUtility.HALT_OR_FAULT) == 0)
             {
                 engine.ExecuteNext();
 
-                if ((engine.State & HALT_OR_FAULT) != 0)
+                if ((engine.State & SessionUtility.HALT_OR_FAULT) != 0)
                 {
                     break;
                 }
@@ -199,7 +196,7 @@ namespace NeoDebug
 
         public void Continue()
         {
-            while ((engine.State & HALT_OR_FAULT) == 0)
+            while ((engine.State & SessionUtility.HALT_OR_FAULT) == 0)
             {
                 engine.ExecuteNext();
 
@@ -254,7 +251,7 @@ namespace NeoDebug
 
         public IEnumerable<Scope> GetScopes(ScopesArguments args)
         {
-            if ((engine.State & HALT_OR_FAULT) == 0)
+            if ((engine.State & SessionUtility.HALT_OR_FAULT) == 0)
             {
                 var context = engine.InvocationStack.Peek(args.FrameId);
                 var contextID = variableManager.Add(
@@ -268,7 +265,7 @@ namespace NeoDebug
 
         public IEnumerable<Variable> GetVariables(VariablesArguments args)
         {
-            if ((engine.State & HALT_OR_FAULT) == 0)
+            if ((engine.State & SessionUtility.HALT_OR_FAULT) == 0)
             {
                 if (variableManager.TryGetValue(args.VariablesReference, out var container))
                 {
@@ -339,7 +336,7 @@ namespace NeoDebug
 
         public EvaluateResponse Evaluate(EvaluateArguments args)
         {
-            if ((engine.State & HALT_OR_FAULT) != 0)
+            if ((engine.State & SessionUtility.HALT_OR_FAULT) != 0)
                 return DebugAdapter.FailedEvaluation;
 
             var (typeHint, index, variableName) = Helpers.ParseEvalExpression(args.Expression);

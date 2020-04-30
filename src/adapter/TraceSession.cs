@@ -1,15 +1,11 @@
 using Microsoft.VisualStudio.Shared.VSCodeDebugProtocol.Messages;
-using Neo.VM;
 using NeoDebug.Models;
 using NeoDebug.VariableContainers;
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
 
 namespace NeoDebug
 {
@@ -23,8 +19,6 @@ namespace NeoDebug
         private int tracePointIndex = 0;
         private readonly BreakpointManager breakPointManager;
         private readonly VariableContainerManager variables = new VariableContainerManager();
-
-        const VMState HALT_OR_FAULT = VMState.HALT | VMState.FAULT;
 
         TracePoint CurrentTracePoint => tracePoints[tracePointIndex];
         TracePoint.StackFrame CurrentStackFrame => CurrentTracePoint.StackFrames.First();
@@ -70,7 +64,7 @@ namespace NeoDebug
 
         public IEnumerable<Scope> GetScopes(ScopesArguments args)
         {
-            if ((CurrentTracePoint.State & HALT_OR_FAULT) == 0)
+            if ((CurrentTracePoint.State & SessionUtility.HALT_OR_FAULT) == 0)
             {
                 var currentFrame = CurrentStackFrame;
 
@@ -88,7 +82,7 @@ namespace NeoDebug
 
         public IEnumerable<Variable> GetVariables(VariablesArguments args)
         {
-            if ((CurrentTracePoint.State & HALT_OR_FAULT) == 0)
+            if ((CurrentTracePoint.State & SessionUtility.HALT_OR_FAULT) == 0)
             {
                 if (variables.TryGetValue(args.VariablesReference, out var container))
                 {
@@ -106,10 +100,18 @@ namespace NeoDebug
 
         enum Direction { Forward, Reverse };
 
+
+        bool CheckBreakpoint() 
+        {
+            var tracePoint = CurrentTracePoint;
+            var stackFrame = tracePoint.StackFrames.First();
+            return breakPointManager.Check(tracePoint.State, stackFrame.ScriptHash.AsSpan(), stackFrame.InstructionPointer);
+        }
+        
         void Continue(Direction direction)
         {
             var stopReason = StoppedEvent.ReasonValue.Step;
-            while ((CurrentTracePoint.State & HALT_OR_FAULT) == 0)
+            while ((CurrentTracePoint.State & SessionUtility.HALT_OR_FAULT) == 0)
             {
                 if (direction == Direction.Reverse && tracePointIndex == 0) break;
                     
@@ -125,18 +127,11 @@ namespace NeoDebug
             SessionUtility.FireStoppedEvent(stopReason, CurrentTracePoint.State, sendEvent, () => traceResult.Results);
         }
 
-        bool CheckBreakpoint() 
-        {
-            var tracePoint = CurrentTracePoint;
-            var stackFrame = tracePoint.StackFrames.First();
-            return breakPointManager.Check(tracePoint.State, stackFrame.ScriptHash.AsSpan(), stackFrame.InstructionPointer);
-        }
-
         void Step(Func<int, int, bool> compare, Direction direction)
         {
             var c = CurrentTracePoint.StackFrames.Length;
             var stopReason = StoppedEvent.ReasonValue.Step;
-            while ((CurrentTracePoint.State & HALT_OR_FAULT) == 0)
+            while ((CurrentTracePoint.State & SessionUtility.HALT_OR_FAULT) == 0)
             {
                 tracePointIndex += direction == Direction.Forward ? 1 : -1;
 
@@ -145,7 +140,7 @@ namespace NeoDebug
                     throw new InvalidOperationException();
                 }
 
-                if ((CurrentTracePoint.State & HALT_OR_FAULT) != 0)
+                if ((CurrentTracePoint.State & SessionUtility.HALT_OR_FAULT) != 0)
                 {
                     break;
                 }
@@ -184,6 +179,7 @@ namespace NeoDebug
 
         public void StepIn()
         {
+            // step to the next sequence point, regardless of stack 
             Step((_, __) => true, Direction.Forward);
         }
 
@@ -194,6 +190,7 @@ namespace NeoDebug
 
         public void StepBack()
         {
+            // step to the previous sequence point, regardless of stack 
             Step((_, __) => true, Direction.Reverse);
         }
 

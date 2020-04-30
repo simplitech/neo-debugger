@@ -1,6 +1,4 @@
 ﻿using Microsoft.VisualStudio.Shared.VSCodeDebugProtocol.Messages;
-using NeoDebug.VariableContainers;
-using NeoFx;
 using NeoFx.Models;
 using System;
 using System.Collections.Generic;
