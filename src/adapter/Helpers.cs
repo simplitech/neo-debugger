@@ -29,7 +29,7 @@ namespace NeoDebug
             }
         }
 
-        public static IEnumerable<(string name, string type)> GetLocals(this MethodDebugInfo method) => method.Parameters.Concat(method.Variables);
+        public static IEnumerable<(string name, string type)> GetLocals(this DebugInfo.Method method) => method.Parameters.Concat(method.Variables);
 
         public static string ToHexString(this BigInteger bigInteger)
             => "0x" + bigInteger.ToString("x");
@@ -91,7 +91,7 @@ namespace NeoDebug
             return false;
         }
 
-        internal static MethodDebugInfo? GetMethod(this Contract contract, ExecutionContext context)
+        internal static DebugInfo.Method? GetMethod(this Contract contract, ExecutionContext context)
         {
             if (contract.ScriptHash.AsSpan().SequenceEqual(context.ScriptHash))
             {
@@ -103,7 +103,7 @@ namespace NeoDebug
             return null;
         }
 
-        public static EventDebugInfo? GetEvent(this Contract contract, string name)
+        public static DebugInfo.Event? GetEvent(this Contract contract, string name)
         {
             for (int i = 0; i < contract.DebugInfo.Events.Count; i++)
             {
@@ -121,13 +121,13 @@ namespace NeoDebug
         {
             if (contract.ScriptHash.AsSpan().SequenceEqual(context.ScriptHash))
             {
-                return (contract.GetMethod(context)?.SequencePoints ?? new List<SequencePoint>())
+                return (contract.GetMethod(context)?.SequencePoints ?? new List<DebugInfo.SequencePoint>())
                     .Any(sp => sp.Address == context.InstructionPointer);
             }
             return false;
         }
 
-        internal static SequencePoint? GetCurrentSequencePoint(this MethodDebugInfo method, ExecutionContext context)
+        internal static DebugInfo.SequencePoint? GetCurrentSequencePoint(this DebugInfo.Method method, ExecutionContext context)
         {
             if (method != null)
             {

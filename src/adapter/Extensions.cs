@@ -1,13 +1,33 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using Microsoft.VisualStudio.Shared.VSCodeDebugProtocol.Messages;
 using Neo.VM;
 using Neo.VM.Types;
 using NeoFx;
+using Newtonsoft.Json.Linq;
 
 namespace NeoDebug
 {
     static class Extensions
     {
+        public static string[] GetReturnTypes(this LaunchArguments arguments)
+        {
+            IEnumerable<string> GetReturnTypes()
+            {
+                if (arguments.ConfigurationProperties.TryGetValue("return-types", out var returnTypes))
+                {
+                    foreach (var returnType in returnTypes)
+                    {
+                        yield return Helpers.CastOperations[returnType.Value<string>()];
+                    }
+                }
+            }
+
+            return GetReturnTypes().ToArray();
+        }
+
         public static bool TryPopInterface<T>(this RandomAccessStack<StackItem> stack, [NotNullWhen(true)] out T? value)
             where T : class
         {

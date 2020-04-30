@@ -22,7 +22,7 @@ namespace NeoDebug
         private readonly Dictionary<int, HashSet<int>> breakPoints = new Dictionary<int, HashSet<int>>();
         private readonly Dictionary<int, IVariableContainer> variableContainers = new Dictionary<int, IVariableContainer>();
 
-        public DebugSession(IExecutionEngine engine, Contract contract, Action<DebugEvent> sendEvent, ContractArgument[] arguments, ReadOnlyMemory<string> returnTypes)
+        private DebugSession(IExecutionEngine engine, Contract contract, Action<DebugEvent> sendEvent, ContractArgument[] arguments, ReadOnlyMemory<string> returnTypes)
         {
             this.engine = engine;
             this.sendEvent = sendEvent;
@@ -115,9 +115,7 @@ namespace NeoDebug
 
         static public DebugSession Create(Contract contract, LaunchArguments arguments, Action<DebugEvent> sendEvent)
         {
-            var returnTypes = GetReturnTypes().ToArray();
-
-
+            var returnTypes = arguments.GetReturnTypes();
             var contractArgs = GetArguments(contract.EntryPoint).ToArray();
 
             var engine = DebugExecutionEngine.Create(contract, arguments, outputEvent => sendEvent(outputEvent));
@@ -138,7 +136,7 @@ namespace NeoDebug
                 return new JArray();
             }
 
-            IEnumerable<ContractArgument> GetArguments(MethodDebugInfo method)
+            IEnumerable<ContractArgument> GetArguments(DebugInfo.Method method)
             {
                 var args = GetArgsConfig();
                 for (int i = 0; i < method.Parameters.Count; i++)
@@ -146,17 +144,6 @@ namespace NeoDebug
                     yield return ConvertArgument(
                         method.Parameters[i],
                         i < args.Count ? args[i] : null);
-                }
-            }
-
-            IEnumerable<string> GetReturnTypes()
-            {
-                if (arguments.ConfigurationProperties.TryGetValue("return-types", out var returnTypes))
-                {
-                    foreach (var returnType in returnTypes)
-                    {
-                        yield return Helpers.CastOperations[returnType.Value<string>()];
-                    }
                 }
             }
         }

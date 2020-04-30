@@ -13,7 +13,7 @@ namespace NeoDebug
     {
         private readonly bool trace;
         private readonly Action<LogCategory, string> logger;
-        private DebugSession? session;
+        private IDebugSession? session;
 
         public DebugAdapter(bool trace, Stream @in, Stream @out, Action<LogCategory, string>? logger)
         {
@@ -51,7 +51,15 @@ namespace NeoDebug
             {
                 var programFileName = responder.Arguments.ConfigurationProperties["program"].Value<string>();
                 var contract = await Contract.Load(programFileName);
-                session = DebugSession.Create(contract, responder.Arguments, Protocol.SendEvent);
+
+                if (trace)
+                {
+                    session = await TraceSession.Create(contract, responder.Arguments, Protocol.SendEvent);
+                }
+                else
+                {
+                    session = DebugSession.Create(contract, responder.Arguments, Protocol.SendEvent);
+                }
 
                 session.StepIn();
                 Protocol.SendEvent(new StoppedEvent(StoppedEvent.ReasonValue.Entry) { ThreadId = 1 });
