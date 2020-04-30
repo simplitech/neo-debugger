@@ -13,7 +13,7 @@ using System.Text;
 
 namespace NeoDebug
 {
-    class DebugSession : IVariableContainerSession
+    class DebugSession : IDebugSession, IVariableContainerSession
     {
         private readonly IExecutionEngine engine;
         private readonly Contract contract;
