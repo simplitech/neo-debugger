@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 namespace NeoDebug.VariableContainers
 {
-    public class ByteArrayContainer : IVariableContainer
+    class ByteArrayContainer : IVariableContainer
     {
         private readonly IVariableContainerSession session;
         private readonly ReadOnlyMemory<byte> memory;

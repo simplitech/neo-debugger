@@ -276,7 +276,10 @@ namespace NeoDebug
         {
             try
             {
-                if (session == null) throw new InvalidOperationException();
+                if (session == null)
+                {
+                    return new SetBreakpointsResponse();
+                }
 
                 var breakpoints = session.SetBreakpoints(arguments.Source, arguments.Breakpoints).ToList();
                 return new SetBreakpointsResponse(breakpoints);

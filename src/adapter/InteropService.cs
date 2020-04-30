@@ -116,7 +116,7 @@ namespace NeoDebug
 
         internal IVariableContainer GetStorageContainer(IVariableContainerSession session)
         {
-            return new EmulatedStorageContainer(session, scriptHash, storage);
+            return new EmulatedStorageContainer(session, () => storage.EnumerateStorage(scriptHash));
         }
 
         static readonly Regex storageRegex = new Regex(@"^\$storage\[([0-9a-fA-F]{8})\]\.(key|value)$");

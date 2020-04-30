@@ -20,8 +20,8 @@ namespace NeoDebug
         private readonly Contract contract;
         private readonly Action<DebugEvent> sendEvent;
         private readonly ImmutableArray<string> returnTypes;
-        private readonly Dictionary<int, HashSet<int>> breakPoints = new Dictionary<int, HashSet<int>>();
-        private readonly Dictionary<int, IVariableContainer> variableContainers = new Dictionary<int, IVariableContainer>();
+        private readonly BreakpointManager breakPointManager;
+        private readonly VariableContainerManager variableManager = new VariableContainerManager();
 
         private DebugSession(IExecutionEngine engine, Contract contract, Action<DebugEvent> sendEvent, ContractArgument[] arguments, ImmutableArray<string> returnTypes)
         {
@@ -29,6 +29,7 @@ namespace NeoDebug
             this.sendEvent = sendEvent;
             this.contract = contract;
             this.returnTypes = returnTypes;
+            this.breakPointManager = new BreakpointManager(contract);
 
             using var builder = contract.BuildInvokeScript(arguments);
             engine.LoadScript(builder.ToArray());
@@ -151,79 +152,20 @@ namespace NeoDebug
 
         public IEnumerable<Breakpoint> SetBreakpoints(Source source, IReadOnlyList<SourceBreakpoint> sourceBreakpoints)
         {
-            var sourcePath = Path.GetFullPath(source.Path).ToLowerInvariant();
-            var sourcePathHash = sourcePath.GetHashCode();
-
-            breakPoints[sourcePathHash] = new HashSet<int>();
-
-            if (sourceBreakpoints.Count == 0)
-            {
-                yield break;
-            }
-
-            var sequencePoints = contract.DebugInfo.Methods
-                .SelectMany(m => m.SequencePoints)
-                .Where(sp => sourcePath.Equals(Path.GetFullPath(sp.Document), StringComparison.InvariantCultureIgnoreCase))
-                .ToArray();
-
-            foreach (var sourceBreakPoint in sourceBreakpoints)
-            {
-                var sequencePoint = Array.Find(sequencePoints, sp => sp.Start.line == sourceBreakPoint.Line);
-
-                if (sequencePoint != null)
-                {
-                    breakPoints[sourcePathHash].Add(sequencePoint.Address);
-
-                    yield return new Breakpoint()
-                    {
-                        Verified = true,
-                        Column = sequencePoint.Start.column,
-                        EndColumn = sequencePoint.End.column,
-                        Line = sequencePoint.Start.line,
-                        EndLine = sequencePoint.End.line,
-                        Source = source
-                    };
-                }
-                else
-                {
-                    yield return new Breakpoint()
-                    {
-                        Verified = false,
-                        Column = sourceBreakPoint.Column,
-                        Line = sourceBreakPoint.Line,
-                        Source = source
-                    };
-                }
-            }
+            return breakPointManager.Set(source, sourceBreakpoints);
         }
 
         const VMState HALT_OR_FAULT = VMState.HALT | VMState.FAULT;
 
-        bool CheckBreakpoint()
+        bool CheckBreakpoint() 
         {
-            if ((engine.State & HALT_OR_FAULT) == 0)
-            {
-                var context = engine.CurrentContext;
-
-                if (contract.ScriptHash.AsSpan().SequenceEqual(context.ScriptHash))
-                {
-                    var ip = context.InstructionPointer;
-                    foreach (var kvp in breakPoints)
-                    {
-                        if (kvp.Value.Contains(ip))
-                        {
-                            return true;
-                        }
-                    }
-                }
-            }
-
-            return false;
+            var context = engine.CurrentContext;
+            return breakPointManager.Check(engine.State, context.ScriptHash.AsSpan(), context.InstructionPointer);
         }
 
         void FireStoppedEvent(StoppedEvent.ReasonValue reasonValue)
         {
-            ClearVariableContainers();
+            variableManager.Clear();
             SessionUtility.FireStoppedEvent(reasonValue, engine.State, sendEvent, GetResults);
         }
 
@@ -310,32 +252,16 @@ namespace NeoDebug
                 });
         }
 
-        void ClearVariableContainers()
-        {
-            variableContainers.Clear();
-        }
-
-        public int AddVariableContainer(IVariableContainer container)
-        {
-            var id = container.GetHashCode();
-            if (variableContainers.TryAdd(id, container))
-            {
-                return id;
-            }
-
-            throw new Exception();
-        }
-
         public IEnumerable<Scope> GetScopes(ScopesArguments args)
         {
             if ((engine.State & HALT_OR_FAULT) == 0)
             {
                 var context = engine.InvocationStack.Peek(args.FrameId);
-                var contextID = AddVariableContainer(
+                var contextID = variableManager.Add(
                     new ExecutionContextContainer(this, context, contract));
                 yield return new Scope("Locals", contextID, false);
 
-                var storageID = AddVariableContainer(engine.GetStorageContainer(this));
+                var storageID = variableManager.Add(engine.GetStorageContainer(this));
                 yield return new Scope("Storage", storageID, false);
             }
         }
@@ -344,7 +270,7 @@ namespace NeoDebug
         {
             if ((engine.State & HALT_OR_FAULT) == 0)
             {
-                if (variableContainers.TryGetValue(args.VariablesReference, out var container))
+                if (variableManager.TryGetValue(args.VariablesReference, out var container))
                 {
                     return container.GetVariables();
                 }
@@ -375,7 +301,7 @@ namespace NeoDebug
                 return variable.Value;
             }
 
-            if (variableContainers.TryGetValue(variable.VariablesReference, out var container))
+            if (variableManager.TryGetValue(variable.VariablesReference, out var container))
             {
                 switch (container)
                 {
@@ -474,6 +400,11 @@ namespace NeoDebug
             }
 
             return DebugAdapter.FailedEvaluation;
+        }
+
+        int IVariableContainerSession.AddVariableContainer(IVariableContainer container)
+        {
+            return variableManager.Add(container);
         }
     }
 }

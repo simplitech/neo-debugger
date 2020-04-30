@@ -7,6 +7,7 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Neo.VM;
 using NeoFx;
+using NeoFx.Models;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -27,13 +28,15 @@ namespace NeoDebug.Models
 
         static TracePoint ParseTracePoint(JToken token)
         {
-            static TracePoint.Storage ParseStorage(JToken token)
+            static (ImmutableArray<byte> key, StorageItem item) ParseStorage(JToken token)
             {
                 var key = token["key"]?.ToObject<byte[]>().ToImmutableArray() ?? ImmutableArray<byte>.Empty;
                 var value = token["value"]?.ToObject<byte[]>().ToImmutableArray() ?? ImmutableArray<byte>.Empty;
                 var constant = token.Value<bool>("constant");
 
-                return new TracePoint.Storage(key, value, constant);
+                var item = new StorageItem(value.AsMemory(), constant);
+
+                return (key, item);
             }
 
             static TracePoint.StackFrame ParseStackFrame(JToken token)
@@ -46,7 +49,7 @@ namespace NeoDebug.Models
                 var index = token.Value<int>("index");
                 var ip = token.Value<int>("instruction-pointer");
                 var storages = token["storages"]?.Select(ParseStorage).ToImmutableArray()
-                    ?? ImmutableArray<TracePoint.Storage>.Empty;
+                    ?? ImmutableArray<(ImmutableArray<byte>, StorageItem)>.Empty;
 
                 return new TracePoint.StackFrame(index, scriptHashImmutableArray, ip, storages);
             }

@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Neo.VM;
+using NeoFx.Models;
 
 namespace NeoDebug.Models
 {
@@ -21,29 +22,15 @@ namespace NeoDebug.Models
 
     public readonly struct TracePoint
     {
-        public readonly struct Storage
-        {
-            public readonly ImmutableArray<byte> Key; 
-            public readonly ImmutableArray<byte> Value;
-            public readonly bool Constant;
-
-            public Storage(ImmutableArray<byte> key, ImmutableArray<byte> value, bool constant)
-            {
-                Constant = constant;
-                Key = key;
-                Value = value;
-            }
-        }
-
         public readonly struct StackFrame
         {
             public readonly int Index;
             public readonly ImmutableArray<byte> ScriptHash;
             public readonly int InstructionPointer;
-            public readonly ImmutableArray<Storage> Storages;
+            public readonly ImmutableArray<(ImmutableArray<byte> key, StorageItem item)> Storages;
             // TODO: add variables
 
-            public StackFrame(int index, ImmutableArray<byte> scriptHash, int instructionPointer, ImmutableArray<Storage> storages)
+            public StackFrame(int index, ImmutableArray<byte> scriptHash, int instructionPointer, ImmutableArray<(ImmutableArray<byte> key, StorageItem item)> storages)
             {
                 Storages = storages;
                 Index = index;
