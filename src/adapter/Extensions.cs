@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Microsoft.VisualStudio.Shared.VSCodeDebugProtocol.Messages;
@@ -12,7 +13,7 @@ namespace NeoDebug
 {
     static class Extensions
     {
-        public static string[] GetReturnTypes(this LaunchArguments arguments)
+        public static ImmutableArray<string> GetReturnTypes(this LaunchArguments arguments)
         {
             IEnumerable<string> GetReturnTypes()
             {
@@ -25,7 +26,7 @@ namespace NeoDebug
                 }
             }
 
-            return GetReturnTypes().ToArray();
+            return GetReturnTypes().ToImmutableArray();
         }
 
         public static bool TryPopInterface<T>(this RandomAccessStack<StackItem> stack, [NotNullWhen(true)] out T? value)

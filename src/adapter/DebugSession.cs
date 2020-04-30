@@ -6,6 +6,7 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Numerics;
@@ -18,11 +19,11 @@ namespace NeoDebug
         private readonly IExecutionEngine engine;
         private readonly Contract contract;
         private readonly Action<DebugEvent> sendEvent;
-        private readonly ReadOnlyMemory<string> returnTypes;
+        private readonly ImmutableArray<string> returnTypes;
         private readonly Dictionary<int, HashSet<int>> breakPoints = new Dictionary<int, HashSet<int>>();
         private readonly Dictionary<int, IVariableContainer> variableContainers = new Dictionary<int, IVariableContainer>();
 
-        private DebugSession(IExecutionEngine engine, Contract contract, Action<DebugEvent> sendEvent, ContractArgument[] arguments, ReadOnlyMemory<string> returnTypes)
+        private DebugSession(IExecutionEngine engine, Contract contract, Action<DebugEvent> sendEvent, ContractArgument[] arguments, ImmutableArray<string> returnTypes)
         {
             this.engine = engine;
             this.sendEvent = sendEvent;
@@ -223,33 +224,7 @@ namespace NeoDebug
         void FireStoppedEvent(StoppedEvent.ReasonValue reasonValue)
         {
             ClearVariableContainers();
-
-            if ((engine.State & VMState.FAULT) != 0)
-            {
-                sendEvent(new OutputEvent()
-                {
-                    Category = OutputEvent.CategoryValue.Stderr,
-                    Output = "Engine State Faulted\n",
-                });
-                sendEvent(new TerminatedEvent());
-            }
-            if ((engine.State & VMState.HALT) != 0)
-            {
-                foreach (var result in GetResults())
-                {
-                    sendEvent(new OutputEvent()
-                    {
-                        Category = OutputEvent.CategoryValue.Stdout,
-                        Output = $"Return: {result}\n",
-                    });
-                }
-                sendEvent(new ExitedEvent());
-                sendEvent(new TerminatedEvent());
-            }
-            else
-            {
-                sendEvent(new StoppedEvent(reasonValue) { ThreadId = 1 });
-            }
+            SessionUtility.FireStoppedEvent(reasonValue, engine.State, sendEvent, GetResults);
         }
 
         void Step(Func<int, int, bool> compare)
@@ -271,7 +246,7 @@ namespace NeoDebug
                     break;
                 }
 
-                if (compare(engine.InvocationStack.Count, c) && contract.CheckSequencePoint(engine.CurrentContext))
+                if (compare(engine.InvocationStack.Count, c) && contract.CheckSequencePoint(engine.CurrentContext.ScriptHash, engine.CurrentContext.InstructionPointer))
                 {
                     break;
                 }
@@ -327,48 +302,12 @@ namespace NeoDebug
 
         public IEnumerable<StackFrame> GetStackFrames(StackTraceArguments args)
         {
-            System.Diagnostics.Debug.Assert(args.ThreadId == 1);
 
-            if ((engine.State & HALT_OR_FAULT) == 0)
-            {
-                var start = args.StartFrame ?? 0;
-                var count = args.Levels ?? int.MaxValue;
-                var end = Math.Min(engine.InvocationStack.Count, start + count);
-
-                for (var i = start; i < end; i++)
+            return SessionUtility.GetStackFrames(args, contract, engine.State, engine.InvocationStack.Count, i =>
                 {
                     var context = engine.InvocationStack.Peek(i);
-                    var method = contract.GetMethod(context);
-
-                    var frame = new StackFrame()
-                    {
-                        Id = i,
-                        Name = method?.Name ?? "<unknown>",
-                        ModuleId = context.ScriptHash,
-                    };
-
-                    var sequencePoint = method?.GetCurrentSequencePoint(context);
-
-                    if (sequencePoint != null)
-                    {
-                        frame.Source = new Source()
-                        {
-                            Name = Path.GetFileName(sequencePoint.Document),
-                            Path = sequencePoint.Document
-                        };
-                        frame.Line = sequencePoint.Start.line;
-                        frame.Column = sequencePoint.Start.column;
-
-                        if (sequencePoint.Start != sequencePoint.End)
-                        {
-                            frame.EndLine = sequencePoint.End.line;
-                            frame.EndColumn = sequencePoint.End.column;
-                        }
-                    }
-
-                    yield return frame;
-                }
-            }
+                    return (context.ScriptHash.AsMemory(), context.InstructionPointer);
+                });
         }
 
         void ClearVariableContainers()
@@ -467,7 +406,7 @@ namespace NeoDebug
             foreach (var (item, index) in engine.ResultStack.Select((_item, index) => (_item, index)))
             {
                 var returnType = index < returnTypes.Length
-                    ? returnTypes.Span[index] : null;
+                    ? returnTypes[index] : null;
                 yield return GetResult(item, returnType);
             }
         }
@@ -508,7 +447,7 @@ namespace NeoDebug
                 if (context.AltStack.Count <= 0)
                     continue;
 
-                var method = contract.GetMethod(context);
+                var method = contract.GetMethod(context.ScriptHash, context.InstructionPointer);
                 if (method == null)
                     continue;
 

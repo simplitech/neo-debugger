@@ -13,7 +13,7 @@ namespace NeoDebug.VariableContainers
         private readonly DebugInfo.Method? method;
 
         public ExecutionContextContainer(IVariableContainerSession session, ExecutionContext context, Contract contract)
-            : this(session, context, contract.GetMethod(context))
+            : this(session, context, contract.GetMethod(context.ScriptHash, context.InstructionPointer))
         {
         }
 

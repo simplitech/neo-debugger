@@ -54,7 +54,7 @@ namespace NeoDebug
 
                 if (trace)
                 {
-                    session = await TraceSession.Create(contract, responder.Arguments, Protocol.SendEvent);
+                    session = TraceSession.Create(contract, responder.Arguments, Protocol.SendEvent);
                 }
                 else
                 {

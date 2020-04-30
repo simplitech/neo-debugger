@@ -2,6 +2,7 @@
 using Neo.VM;
 using NeoDebug.Models;
 using NeoDebug.VariableContainers;
+using NeoFx;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -91,11 +92,11 @@ namespace NeoDebug
             return false;
         }
 
-        internal static DebugInfo.Method? GetMethod(this Contract contract, ExecutionContext context)
+        internal static DebugInfo.Method? GetMethod(this Contract contract, ReadOnlySpan<byte> scriptHash, int instructionPointer)
         {
-            if (contract.ScriptHash.AsSpan().SequenceEqual(context.ScriptHash))
+            if (contract.ScriptHash.AsSpan().SequenceEqual(scriptHash))
             {
-                var ip = context.InstructionPointer;
+                var ip = instructionPointer;
                 return contract.DebugInfo.Methods
                     .SingleOrDefault(m => m.Range.Start <= ip && ip <= m.Range.End);
             }
@@ -117,37 +118,36 @@ namespace NeoDebug
             return null;
         }
 
-        internal static bool CheckSequencePoint(this Contract contract, ExecutionContext context)
+        internal static bool CheckSequencePoint(this Contract contract, ReadOnlySpan<byte> scriptHash, int instructionPointer)
         {
-            if (contract.ScriptHash.AsSpan().SequenceEqual(context.ScriptHash))
+            if (contract.ScriptHash.AsSpan().SequenceEqual(scriptHash))
             {
-                return (contract.GetMethod(context)?.SequencePoints ?? new List<DebugInfo.SequencePoint>())
-                    .Any(sp => sp.Address == context.InstructionPointer);
+                return (contract.GetMethod(scriptHash, instructionPointer)?.SequencePoints ?? new List<DebugInfo.SequencePoint>())
+                    .Any(sp => sp.Address == instructionPointer);
             }
             return false;
+
         }
 
-        internal static DebugInfo.SequencePoint? GetCurrentSequencePoint(this DebugInfo.Method method, ExecutionContext context)
+        internal static DebugInfo.SequencePoint? GetCurrentSequencePoint(this DebugInfo.Method method, int instructionPointer)
         {
             if (method != null)
             {
                 var sequencePoints = method.SequencePoints.OrderBy(sp => sp.Address).ToArray();
                 if (sequencePoints.Length > 0)
                 {
-                    var ip = context.InstructionPointer;
-
                     for (int i = 0; i < sequencePoints.Length; i++)
                     {
-                        if (ip == sequencePoints[i].Address)
+                        if (instructionPointer == sequencePoints[i].Address)
                             return sequencePoints[i];
                     }
 
-                    if (ip <= sequencePoints[0].Address)
+                    if (instructionPointer <= sequencePoints[0].Address)
                         return sequencePoints[0];
 
                     for (int i = 0; i < sequencePoints.Length - 1; i++)
                     {
-                        if (ip > sequencePoints[i].Address && ip <= sequencePoints[i + 1].Address)
+                        if (instructionPointer > sequencePoints[i].Address && instructionPointer <= sequencePoints[i + 1].Address)
                             return sequencePoints[i];
                     }
                 }
