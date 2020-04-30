@@ -12,8 +12,10 @@ namespace NeoDebug
         IEnumerable<Variable> GetVariables(VariablesArguments args);
         EvaluateResponse Evaluate(EvaluateArguments args);
         void Continue();
+        void ReverseContinue();
         void StepIn();
         void StepOut();
         void StepOver();
+        void StepBack();
     }
 }

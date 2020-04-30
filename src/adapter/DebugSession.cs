@@ -33,7 +33,7 @@ namespace NeoDebug
             engine.LoadScript(builder.ToArray());
         }
 
-        private static ContractArgument ConvertArgument(JToken arg)
+        static ContractArgument ConvertArgument(JToken arg)
         {
             switch (arg.Type)
             {
@@ -54,7 +54,7 @@ namespace NeoDebug
             }
         }
 
-        private static object ConvertArgumentToObject(ContractParameterType paramType, JToken? arg)
+        static object ConvertArgumentToObject(ContractParameterType paramType, JToken? arg)
         {
             if (arg == null)
             {
@@ -97,7 +97,7 @@ namespace NeoDebug
             throw new NotImplementedException($"DebugAdapter.ConvertArgument {paramType} {arg}");
         }
 
-        private static ContractArgument ConvertArgument((string name, string type) param, JToken? arg)
+        static ContractArgument ConvertArgument((string name, string type) param, JToken? arg)
         {
             var type = param.type switch
             {
@@ -209,7 +209,6 @@ namespace NeoDebug
             }
         }
 
-
         const VMState HALT_OR_FAULT = VMState.HALT | VMState.FAULT;
 
         bool CheckBreakpoint()
@@ -234,7 +233,7 @@ namespace NeoDebug
             return false;
         }
 
-        private void FireStoppedEvent(StoppedEvent.ReasonValue reasonValue)
+        void FireStoppedEvent(StoppedEvent.ReasonValue reasonValue)
         {
             ClearVariableContainers();
 
@@ -266,21 +265,6 @@ namespace NeoDebug
             }
         }
 
-        public void Continue()
-        {
-            while ((engine.State & HALT_OR_FAULT) == 0)
-            {
-                engine.ExecuteNext();
-
-                if (CheckBreakpoint())
-                {
-                    break;
-                }
-            }
-
-            FireStoppedEvent(StoppedEvent.ReasonValue.Breakpoint);
-        }
-
         void Step(Func<int, int, bool> compare)
         {
             var c = engine.InvocationStack.Count;
@@ -309,6 +293,26 @@ namespace NeoDebug
             FireStoppedEvent(stopReason);
         }
 
+        public void Continue()
+        {
+            while ((engine.State & HALT_OR_FAULT) == 0)
+            {
+                engine.ExecuteNext();
+
+                if (CheckBreakpoint())
+                {
+                    break;
+                }
+            }
+
+            FireStoppedEvent(StoppedEvent.ReasonValue.Breakpoint);
+        }
+
+        public void ReverseContinue()
+        {
+            throw new NotSupportedException();
+        }
+
         public void StepOver()
         {
             Step((currentStackSize, originalStackSize) => currentStackSize <= originalStackSize);
@@ -322,6 +326,11 @@ namespace NeoDebug
         public void StepOut()
         {
             Step((currentStackSize, originalStackSize) => currentStackSize < originalStackSize);
+        }
+
+        public void StepBack()
+        {
+            throw new NotSupportedException();
         }
 
         public IEnumerable<Thread> GetThreads()

@@ -230,6 +230,40 @@ namespace NeoDebug
             }
         }
 
+        protected override ReverseContinueResponse HandleReverseContinueRequest(ReverseContinueArguments arguments)
+        {
+            try
+            {
+                if (session == null) throw new InvalidOperationException();
+
+                session.ReverseContinue();
+
+                return new ReverseContinueResponse();
+            }
+            catch (Exception ex)
+            {
+                Log(ex.Message, LogCategory.DebugAdapterOutput);
+                throw new ProtocolException(ex.Message, ex);
+            }
+        }
+
+        protected override StepBackResponse HandleStepBackRequest(StepBackArguments arguments)
+        {
+            try
+            {
+                if (session == null) throw new InvalidOperationException();
+
+                session.StepBack();
+
+                return new StepBackResponse();
+            }
+            catch (Exception ex)
+            {
+                Log(ex.Message, LogCategory.DebugAdapterOutput);
+                throw new ProtocolException(ex.Message, ex);
+            }
+        }
+
         protected override SetBreakpointsResponse HandleSetBreakpointsRequest(SetBreakpointsArguments arguments)
         {
             try
