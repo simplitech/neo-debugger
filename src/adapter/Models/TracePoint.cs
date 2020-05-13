@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Neo.VM;
+using NeoFx;
 using NeoFx.Models;
 
 namespace NeoDebug.Models
@@ -22,30 +23,31 @@ namespace NeoDebug.Models
 
     public readonly struct TracePoint
     {
-        public readonly struct StackFrame
+        public readonly struct Context
         {
-            public readonly int Index;
-            public readonly ImmutableArray<byte> ScriptHash;
+            public readonly UInt160 ScriptHash;
             public readonly int InstructionPointer;
-            public readonly ImmutableArray<(ImmutableArray<byte> key, StorageItem item)> Storages;
-            // TODO: add variables
+            public readonly ImmutableArray<string> EvalStack;
+            public readonly ImmutableArray<string> AltStack;
 
-            public StackFrame(int index, ImmutableArray<byte> scriptHash, int instructionPointer, ImmutableArray<(ImmutableArray<byte> key, StorageItem item)> storages)
+            public Context(UInt160 scriptHash, int instructionPointer, ImmutableArray<string> evalStack, ImmutableArray<string> altStack)
             {
-                Storages = storages;
-                Index = index;
                 ScriptHash = scriptHash;
                 InstructionPointer = instructionPointer;
+                EvalStack = evalStack;
+                AltStack = altStack;
             }
         }
 
         public readonly Neo.VM.VMState State;
-        public readonly ImmutableArray<StackFrame> StackFrames;
+        public readonly ImmutableArray<Context> Contexts;
+        public readonly ImmutableDictionary<StorageKey, StorageItem> Storages;
 
-        public TracePoint(VMState state, ImmutableArray<StackFrame> stackFrames)
+        public TracePoint(VMState state, ImmutableArray<Context> contexts, ImmutableDictionary<StorageKey, StorageItem> storages)
         {
             State = state;
-            StackFrames = stackFrames;
+            Contexts = contexts;
+            Storages = storages;
         }
     }
 }

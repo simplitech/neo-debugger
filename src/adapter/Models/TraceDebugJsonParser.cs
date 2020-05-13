@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO;
@@ -27,39 +28,38 @@ namespace NeoDebug.Models
 
         static TracePoint ParseTracePoint(JToken token)
         {
-            static (ImmutableArray<byte> key, StorageItem item) ParseStorage(JToken token)
-            {
-                var key = token["key"]?.ToObject<byte[]>().ToImmutableArray() ?? ImmutableArray<byte>.Empty;
-                var value = token["value"]?.ToObject<byte[]>().ToImmutableArray() ?? ImmutableArray<byte>.Empty;
-                var constant = token.Value<bool>("constant");
-
-                var item = new StorageItem(value.AsMemory(), constant);
-
-                return (key, item);
-            }
-
-            static TracePoint.StackFrame ParseStackFrame(JToken token)
-            {
-                var scriptHash = UInt160.Parse(token.Value<string>("script-hash"));
-                var scriptHashArray= new byte[UInt160.Size];
-                scriptHash.Write(scriptHashArray);
-                var scriptHashImmutableArray = Unsafe.As<byte[], ImmutableArray<byte>>(ref scriptHashArray);
-
-                var index = token.Value<int>("index");
-                var ip = token.Value<int>("instruction-pointer");
-                var storages = token["storages"]?.Select(ParseStorage).ToImmutableArray()
-                    ?? ImmutableArray<(ImmutableArray<byte>, StorageItem)>.Empty;
-
-                return new TracePoint.StackFrame(index, scriptHashImmutableArray, ip, storages);
-            }
-
             Debug.Assert(token.Value<string>("type") == "trace-point");
 
             var state = Enum.Parse<VMState>(token.Value<string>("vmstate"));
-            var stackFrames = token["stack-frames"]?.Select(ParseStackFrame).ToImmutableArray()
-                ?? ImmutableArray<TracePoint.StackFrame>.Empty;
-            
-            return new TracePoint(state, stackFrames);
+            var contexts = token["contexts"]?.Select(ParseContext).ToImmutableArray()
+                ?? ImmutableArray<TracePoint.Context>.Empty;
+            var storages = token["storages"].SelectMany(ParseStorage).ToImmutableDictionary(t => t.key, t => t.item)
+                ?? ImmutableDictionary<StorageKey, StorageItem>.Empty;
+
+            return new TracePoint(state, contexts, storages);
+
+            static IEnumerable<(StorageKey key, StorageItem item)> ParseStorage(JToken token)
+            {
+                var scriptHash = UInt160.Parse(token.Value<string>("script-hash"));
+                foreach (var item in token["items"] ?? Enumerable.Empty<JToken>())
+                {
+                    var key = item["key"]?.ToObject<byte[]>().ToImmutableArray() ?? ImmutableArray<byte>.Empty;
+                    var value = item["value"]?.ToObject<byte[]>().ToImmutableArray() ?? ImmutableArray<byte>.Empty;
+                    var constant = item.Value<bool>("constant");
+
+                    yield return (new StorageKey(scriptHash, key.AsMemory()), new StorageItem(value.AsMemory(), constant));
+                }
+            }
+
+            static TracePoint.Context ParseContext(JToken token)
+            {
+                var scriptHash = UInt160.Parse(token.Value<string>("script-hash"));
+                var ip = token.Value<int>("instruction-pointer");
+                // TODO: read eval/alt stacks
+
+                return new TracePoint.Context(scriptHash, ip, ImmutableArray<string>.Empty, ImmutableArray<string>.Empty);
+            }
+
         }
 
         // TODO: convert this to async method. JArray.LoadAsync failing for some reason

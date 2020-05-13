@@ -1,6 +1,7 @@
 using Microsoft.VisualStudio.Shared.VSCodeDebugProtocol.Messages;
 using NeoDebug.Models;
 using NeoDebug.VariableContainers;
+using NeoFx;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -21,8 +22,6 @@ namespace NeoDebug
         private readonly VariableContainerManager variables = new VariableContainerManager();
 
         TracePoint CurrentTracePoint => tracePoints[tracePointIndex];
-        TracePoint.StackFrame CurrentStackFrame => CurrentTracePoint.StackFrames.First();
-
 
         private TraceSession(ImmutableArray<TracePoint> tracePoints, in TraceResult traceResult, Contract contract, Action<DebugEvent> sendEvent, ImmutableArray<string> returnTypes)
         {
@@ -53,12 +52,25 @@ namespace NeoDebug
             yield return new Thread(1, "main thread");
         }
 
+        static byte[] ToArray(UInt160 value)
+        {
+            if (value.TryToArray(out var array))
+            {
+                return array;
+            }
+
+            throw new Exception();
+        }
+
         public IEnumerable<StackFrame> GetStackFrames(StackTraceArguments args)
         {
-            return SessionUtility.GetStackFrames(args, contract, CurrentTracePoint.State, CurrentTracePoint.StackFrames.Length, i =>
+            return SessionUtility.GetStackFrames(args, contract, CurrentTracePoint.State, CurrentTracePoint.Contexts.Length, i =>
                 {
-                    var stackFrame = CurrentTracePoint.StackFrames[i];
-                    return (stackFrame.ScriptHash.AsMemory(), stackFrame.InstructionPointer);
+                    var context = CurrentTracePoint.Contexts[i];
+                    var scriptHash = ToArray(context.ScriptHash);
+                    return (scriptHash.AsMemory(), context.InstructionPointer);
+                    
+                    throw new Exception();
                 });
         }
 
@@ -66,7 +78,11 @@ namespace NeoDebug
         {
             if ((CurrentTracePoint.State & SessionUtility.HALT_OR_FAULT) == 0)
             {
-                var currentFrame = CurrentStackFrame;
+                var tracePoint = CurrentTracePoint;
+                var context = tracePoint.Contexts.First();
+                var storages = tracePoint.Storages
+                    .Where(s => s.Key.ScriptHash == context.ScriptHash)
+                    .Select(s => (s.Key.Key, s.Value));
 
                 // var context = engine.InvocationStack.Peek(args.FrameId);
                 // var contextID = AddVariableContainer(
@@ -74,7 +90,7 @@ namespace NeoDebug
                 // yield return new Scope("Locals", contextID, false);
  
                 var storageContainer = new EmulatedStorageContainer(this, 
-                    () => currentFrame.Storages.Select(s => (s.key.AsMemory(), s.item)));
+                    () => storages);
                 var storageID = variables.Add(storageContainer);
                 yield return new Scope("Storage", storageID, false);
             }
@@ -104,8 +120,9 @@ namespace NeoDebug
         bool CheckBreakpoint() 
         {
             var tracePoint = CurrentTracePoint;
-            var stackFrame = tracePoint.StackFrames.First();
-            return breakPointManager.Check(tracePoint.State, stackFrame.ScriptHash.AsSpan(), stackFrame.InstructionPointer);
+            var stackFrame = tracePoint.Contexts.First();
+            var scriptHash = ToArray(stackFrame.ScriptHash);
+            return breakPointManager.Check(tracePoint.State, scriptHash.AsSpan(), stackFrame.InstructionPointer);
         }
         
         void Continue(Direction direction)
@@ -129,7 +146,7 @@ namespace NeoDebug
 
         void Step(Func<int, int, bool> compare, Direction direction)
         {
-            var c = CurrentTracePoint.StackFrames.Length;
+            var c = CurrentTracePoint.Contexts.Length;
             var stopReason = StoppedEvent.ReasonValue.Step;
             while ((CurrentTracePoint.State & SessionUtility.HALT_OR_FAULT) == 0)
             {
@@ -151,9 +168,10 @@ namespace NeoDebug
                    break;
                 }
 
-                var currentFrame = CurrentStackFrame;
-                if (compare(CurrentTracePoint.StackFrames.Length, c) 
-                    && contract.CheckSequencePoint(currentFrame.ScriptHash.AsSpan(), currentFrame.InstructionPointer))
+                var currentFrame = CurrentTracePoint.Contexts.First();
+                var scriptHash = ToArray(currentFrame.ScriptHash);
+                if (compare(CurrentTracePoint.Contexts.Length, c) 
+                    && contract.CheckSequencePoint(scriptHash.AsSpan(), currentFrame.InstructionPointer))
                 {
                     break;
                 }
