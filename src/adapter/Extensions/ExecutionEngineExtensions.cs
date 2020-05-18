@@ -10,6 +10,12 @@ namespace NeoDebug
 {
     static class ExecutionEngineExtensions
     {
+        public static IVariableContainer GetStorageContainer(this IExecutionEngine @this, IVariableContainerSession session, byte[] scriptHash)
+            => @this.GetStorageContainer(session, new UInt160(scriptHash));
+
+        public static EvaluateResponse EvaluateStorageExpression(this IExecutionEngine @this, IVariableContainerSession session, byte[] scriptHash, EvaluateArguments args)
+            => @this.EvaluateStorageExpression(session, new UInt160(scriptHash), args);
+
         public static bool TryPopInterface<T>(this RandomAccessStack<StackItem> stack, [NotNullWhen(true)] out T? value)
             where T : class
         {

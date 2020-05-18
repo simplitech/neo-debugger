@@ -15,7 +15,7 @@ namespace NeoDebug
 {
     class DebugSession : IVariableContainerSession
     {
-        private readonly DebugExecutionEngine engine;
+        private readonly IExecutionEngine engine;
         private readonly IReadOnlyDictionary<UInt160, Contract> contracts;
         private readonly Action<DebugEvent> sendEvent;
         private readonly IReadOnlyList<string> returnTypes;
@@ -31,7 +31,7 @@ namespace NeoDebug
             Toggle
         }
 
-        public DebugSession(DebugExecutionEngine engine, IEnumerable<Contract> contracts, Action<DebugEvent> sendEvent, IReadOnlyList<string> returnTypes, DebugView defaultDebugView)
+        public DebugSession(IExecutionEngine engine, IEnumerable<Contract> contracts, Action<DebugEvent> sendEvent, IReadOnlyList<string> returnTypes, DebugView defaultDebugView)
         {
             this.engine = engine;
             this.sendEvent = sendEvent;

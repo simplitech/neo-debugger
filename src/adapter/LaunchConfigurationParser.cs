@@ -48,11 +48,11 @@ namespace NeoDebug
             }
         }
 
-        static DebugExecutionEngine CreateExecutionEngine(byte[] invokeScript,
-                                                          IEnumerable<Contract> contracts,
-                                                          IEnumerable<(StorageKey, StorageItem)> storages,
-                                                          Dictionary<string, JToken> config,
-                                                          Action<OutputEvent> sendOutput)
+        static IExecutionEngine CreateExecutionEngine(byte[] invokeScript,
+                                                      IEnumerable<Contract> contracts,
+                                                      IEnumerable<(StorageKey, StorageItem)> storages,
+                                                      Dictionary<string, JToken> config,
+                                                      Action<OutputEvent> sendOutput)
         {
             var blockchain = CreateBlockchainStorage(config);
             var (inputs, outputs) = ParseUtxo(blockchain, config);
