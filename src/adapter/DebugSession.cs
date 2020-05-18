@@ -40,7 +40,7 @@ namespace NeoDebug
             this.disassemblyView = defaultDebugView == DebugView.Disassembly;
             this.disassemblyManager = new DisassemblyManager(engine.GetMethodName);
 
-            disassemblyManager.Add((byte[])engine.EntryContext.Script);
+            disassemblyManager.Add(engine.EntryContext.Script);
             foreach (var c in contracts)
             {
                 disassemblyManager.Add(c.Script, c.DebugInfo);
@@ -76,10 +76,9 @@ namespace NeoDebug
             }
         }
 
-        Contract? GetContract(ExecutionContext context)
+        Contract? GetContract(IExecutionContext context)
         {
-            var scriptHash = new UInt160(context.ScriptHash);
-            if (contracts.TryGetValue(scriptHash, out var contract))
+            if (contracts.TryGetValue(context.ScriptHash, out var contract))
             {
                 return contract;
             }
@@ -187,9 +186,7 @@ namespace NeoDebug
             if ((engine.State & HALT_OR_FAULT) == 0)
             {
                 var context = engine.CurrentContext;
-                var scriptHash = new UInt160(context.ScriptHash);
-
-                return CheckBreakpoint(scriptHash, context.InstructionPointer);
+                return CheckBreakpoint(context.ScriptHash, context.InstructionPointer);
             }
 
             return false;
@@ -318,7 +315,7 @@ namespace NeoDebug
 
                 for (var i = start; i < end; i++)
                 {
-                    var context = engine.InvocationStack.Peek(i);
+                    var context = engine.InvocationStack[i];
                     var contract = GetContract(context);
                     var method = contract?.GetMethod(context);
 
@@ -381,7 +378,7 @@ namespace NeoDebug
         {
             if ((engine.State & HALT_OR_FAULT) == 0)
             {
-                var context = engine.InvocationStack.Peek(args.FrameId);
+                var context = engine.InvocationStack[args.FrameId];
                 var contract = GetContract(context);
 
                 int contextID = 0;
@@ -497,11 +494,11 @@ namespace NeoDebug
                 return engine.EvaluateStorageExpression(this, engine.CurrentContext.ScriptHash, args);
             }
 
-            EvaluateResponse GetStackVariable(RandomAccessStack<StackItem> stack)
+            EvaluateResponse GetStackVariable(IReadOnlyList<StackItem> stack)
             {
                 if (index.HasValue && (index.Value < stack.Count))
                 {
-                    var item = stack.Peek((int)index.Value);
+                    var item = stack[(int)index.Value];
                     var variable = item.GetVariable(this, "ZZZ", typeHint);
                     if (variable != null)
                     {
@@ -528,7 +525,7 @@ namespace NeoDebug
 
             for (var stackIndex = 0; stackIndex < engine.InvocationStack.Count; stackIndex++)
             {
-                var context = engine.InvocationStack.Peek(stackIndex);
+                var context = engine.InvocationStack[stackIndex];
                 if (context.AltStack.Count <= 0)
                     continue;
 
@@ -538,7 +535,7 @@ namespace NeoDebug
                     continue;
 
                 var locals = method.GetLocals().ToArray();
-                var variables = (Neo.VM.Types.Array)context.AltStack.Peek(0);
+                var variables = (Neo.VM.Types.Array)context.AltStack[0];
 
                 for (int varIndex = 0; varIndex < Math.Min(variables.Count, locals.Length); varIndex++)
                 {

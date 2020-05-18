@@ -31,10 +31,10 @@ namespace NeoDebug
             throw new ArgumentException(nameof(message));
         }
 
-        public static UInt160 HashScript(byte[] script)
+        public static UInt160 HashScript(ReadOnlyMemory<byte> script)
         {
             Span<byte> buffer = stackalloc byte[HashHelpers.Hash160Size];
-            if (HashHelpers.TryHash160(script, buffer))
+            if (HashHelpers.TryHash160(script.Span, buffer))
             {
                 return new UInt160(buffer);
             }

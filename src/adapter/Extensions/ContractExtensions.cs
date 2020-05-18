@@ -8,9 +8,9 @@ namespace NeoDebug
 {
     public static class ContractExtensions
     {
-        public static DebugInfo.Method? GetMethod(this Contract contract, ExecutionContext context)
+        public static DebugInfo.Method? GetMethod(this Contract contract, IExecutionContext context)
         {
-            if (contract.ScriptHash == new UInt160(context.ScriptHash))
+            if (contract.ScriptHash == context.ScriptHash)
             {
                 var ip = context.InstructionPointer;
                 return contract.DebugInfo.Methods
@@ -34,9 +34,9 @@ namespace NeoDebug
             return null;
         }
 
-        public static bool CheckSequencePoint(this Contract contract, ExecutionContext context)
+        public static bool CheckSequencePoint(this Contract contract, IExecutionContext context)
         {
-            if (contract.ScriptHash == new UInt160(context.ScriptHash))
+            if (contract.ScriptHash == context.ScriptHash)
             {
                 return (contract.GetMethod(context)?.SequencePoints ?? new List<DebugInfo.SequencePoint>())
                     .Any(sp => sp.Address == context.InstructionPointer);
@@ -44,7 +44,7 @@ namespace NeoDebug
             return false;
         }
 
-        public static DebugInfo.SequencePoint? GetCurrentSequencePoint(this DebugInfo.Method method, ExecutionContext context)
+        public static DebugInfo.SequencePoint? GetCurrentSequencePoint(this DebugInfo.Method method, IExecutionContext context)
         {
             if (method != null)
             {

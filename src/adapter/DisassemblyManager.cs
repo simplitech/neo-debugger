@@ -20,7 +20,7 @@ namespace NeoDebug
             this.methodNameResolver = methodNameResolver;
         }
 
-        public void Add(byte[] script, DebugInfo? debugInfo = null)
+        public void Add(ReadOnlyMemory<byte> script, DebugInfo? debugInfo = null)
         {
             var digitCount = Utility.DigitCount(Instruction.ParseScript(script).Last().Position);
             var sb = new StringBuilder();
@@ -63,11 +63,10 @@ namespace NeoDebug
             sourceMap.Add(hashCode, ipMap.ToImmutableDictionary());
         }
 
-        public (Source source, int line) GetSource(byte[] scriptHash, int instructionPointer)
+        public (Source source, int line) GetSource(UInt160 scriptHash, int instructionPointer)
         {
-            var _scriptHash = new UInt160(scriptHash);
-            var hashCode = _scriptHash.GetHashCode();
-            var name = _scriptHash.ToString();
+            var hashCode = scriptHash.GetHashCode();
+            var name = scriptHash.ToString();
             var source = new Source()
             {
                 SourceReference = hashCode,
